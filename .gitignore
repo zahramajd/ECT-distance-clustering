@@ -3,3 +3,4 @@ RandomWalkDataClustering.pdf
 data.txt
 data.csv
 .DS_Store
+__pycache__/node.cpython-36.pyc
