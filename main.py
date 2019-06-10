@@ -9,7 +9,6 @@ from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import minimum_spanning_tree
 
 #TODO:
-# spanning tree
 # ETC
 
 k = 3
@@ -36,7 +35,7 @@ for i in range(dataLen):
                  "id": j
         })
     distances.sort(key=lambda d : d.get('distance'))
-    for d in distances[0:3]: adj4[i][d.get('id')] = d.get('distance')
+    for d in distances[0:k]: adj4[i][d.get('id')] = d.get('distance')
     for d in distances: adjAll[i][d.get('id')] = d.get('distance')
 
 # Create spaning matrix
@@ -44,12 +43,27 @@ span = minimum_spanning_tree(adjAll).toarray()
 
 # Merge
 matMerged = np.zeros((dataLen, dataLen))
+vg = 0
+
 for i in range(dataLen):
         for j in range(dataLen):
                 matMerged[i][j] = adj4[i][j]
                 if matMerged[i][j] == None:
                         adj4[i][j] = span[i][j]
+                vg += matMerged[i][j]
 
-print('Alt + Tab please!')
-plt.matshow(matMerged)
-plt.show()
+
+lMat = np.linalg.pinv(matMerged)
+nMat = np.zeros((dataLen, dataLen))
+
+for i in range(dataLen):
+        for j in range(dataLen):
+                eVector = np.zeros((dataLen, 1))
+                eVector[i] = 1
+                eVector[j] = -1
+
+                nMat[i][j] = vg * np.dot(np.dot(eVector.T,lMat), eVector)
+
+# print('Alt + Tab please!')
+# plt.matshow(matMerged)
+# plt.show()
