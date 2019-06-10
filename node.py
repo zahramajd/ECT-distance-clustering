@@ -10,3 +10,6 @@ class Node:
         self.id = id
         self.neighbors = []
 
+    def show(self):
+        print(self.neighbors)
+

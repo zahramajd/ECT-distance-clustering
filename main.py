@@ -1,10 +1,14 @@
 import pandas as pd
 import math
 from node import Node
-# Clustering using a random walk based distance measure
+import numpy as np
+import random
+import matplotlib.pyplot as plt
+
+from scipy.sparse import csr_matrix
+from scipy.sparse.csgraph import minimum_spanning_tree
 
 #TODO:
-# euclidian distance
 # spanning tree
 # ETC
 
@@ -14,17 +18,38 @@ def euclidean_distance(x1,x2):
     return math.sqrt(sum([(a - b) ** 2 for a, b in zip(x1, x2)]))
 
 data = pd.read_csv("data.csv")
-data = data.as_matrix()
+data = data.values
+random.shuffle(data)
+data = data[0:10]
 
+dataLen = len(data)
+adj4 = np.zeros((dataLen, dataLen))
+adjAll = np.zeros((dataLen, dataLen))
 
-graph = []
-distances = []
+for i in range(dataLen):
+    distances = []
+    for j in range(dataLen):
+        if i == j: continue
+        d = euclidean_distance(data[i], data[j])
+        distances.append({
+                 "distance": d,
+                 "id": j
+        })
+    distances.sort(key=lambda d : d.get('distance'))
+    for d in distances[0:3]: adj4[i][d.get('id')] = d.get('distance')
+    for d in distances: adjAll[i][d.get('id')] = d.get('distance')
 
-for i in range(len(data)):
-    graph.append(Node(data[i][0], data[i][1], i))
-    for j in range(i+1, len(data)):
-        distances.append({'i':i , 'j':j, 'dis':euclidean_distance(data[i], data[j])})
+# Create spaning matrix
+span = minimum_spanning_tree(adjAll).toarray()
 
+# Merge
+matMerged = np.zeros((dataLen, dataLen))
+for i in range(dataLen):
+        for j in range(dataLen):
+                matMerged[i][j] = adj4[i][j]
+                if matMerged[i][j] == None:
+                        adj4[i][j] = span[i][j]
 
-print(len(data))
-print(len(distances))
+print('Alt + Tab please!')
+plt.matshow(matMerged)
+plt.show()
