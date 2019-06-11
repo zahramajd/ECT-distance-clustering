@@ -8,8 +8,6 @@ import matplotlib.pyplot as plt
 from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import minimum_spanning_tree
 
-#TODO:
-# ETC
 
 k = 3
 
@@ -43,17 +41,28 @@ span = minimum_spanning_tree(adjAll).toarray()
 
 # Merge
 matMerged = np.zeros((dataLen, dataLen))
+dMat = np.zeros((dataLen, dataLen))
+
 vg = 0
 
 for i in range(dataLen):
+        tmp = 0
         for j in range(dataLen):
                 matMerged[i][j] = adj4[i][j]
                 if matMerged[i][j] == None:
                         adj4[i][j] = span[i][j]
+
                 vg += matMerged[i][j]
+                tmp += matMerged[i][j]
+        
+        dMat[i][i] = tmp
 
+# L
+lMat = dMat - matMerged
 
-lMat = np.linalg.pinv(matMerged)
+# L+
+lPlusMat = np.linalg.pinv(lMat)
+
 nMat = np.zeros((dataLen, dataLen))
 
 for i in range(dataLen):
@@ -62,7 +71,7 @@ for i in range(dataLen):
                 eVector[i] = 1
                 eVector[j] = -1
 
-                nMat[i][j] = vg * np.dot(np.dot(eVector.T,lMat), eVector)
+                nMat[i][j] = vg * np.dot(np.dot(eVector.T,lPlusMat), eVector)
 
 # print('Alt + Tab please!')
 # plt.matshow(matMerged)
