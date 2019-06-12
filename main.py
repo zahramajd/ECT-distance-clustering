@@ -7,143 +7,141 @@ import random
 import matplotlib.pyplot as plt
 from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import minimum_spanning_tree
-
-#TODO:
-# run another dataset
-
-# K nearest neighbors
-k = 3
-
-# C clusters
-c = 3
-
-def euclidean_distance(x1,x2):
-    return math.sqrt(sum([(a - b) ** 2 for a, b in zip(x1, x2)]))
+import sys
+from sklearn.metrics.cluster import normalized_mutual_info_score
 
 
-data = pd.read_csv("data2.csv")
-data = data.values
-random.shuffle(data)
-# data = data[0:100]
-dataLen = len(data)
+# Params
+numOfNeighbors = 3
+numOfClusters = 2
+maxIterations = 100
 
-adjK = np.zeros((dataLen, dataLen))
-adjAll = np.zeros((dataLen, dataLen))
+# Read data
+data = pd.read_csv("jain.csv", header=None, delimiter='\t').values
 
+# Create Nodes
+nodes = []
 
-for i in range(dataLen):
-    distances = []
-    for j in range(dataLen):
-        if i == j: continue
-        d = euclidean_distance(data[i], data[j])
-        distances.append({
-                 "distance": d,
-                 "id": j
-        })
+for i in range(len(data)):
+    nodes.append(Node(data[i, 0], data[i, 1], i))
 
-        adjAll[i][j] = d
+# Add k nearest nodes
+for node in nodes:
+    for node2 in nodes:
+        if node == node2: continue
+        node.distances.append((node2.id, node.euclidean_distance(node2)))
+    node.distances.sort(key = lambda d : d[1])
 
-    distances.sort(key=lambda d : d.get('distance'))
-    for d in distances[0:k]: adjK[i][d.get('id')] = d.get('distance')
+    for d in node.distances[0:numOfNeighbors]:
+        id = d[0]
+        distance = d[1]
+        node.connect_to(d[0], 1./distance)
 
-# Create spaning matrix
-span = minimum_spanning_tree(adjAll).toarray()
+# Create a graph
+fullyConnectedGraph = np.zeros((len(nodes), len(nodes)))
 
-# Merge
-matMerged = np.zeros((dataLen, dataLen))
-dMat = np.zeros((dataLen, dataLen))
+for node1 in nodes:
+    for node2 in nodes:
+        fullyConnectedGraph[node1.id][node2.id] = node1.euclidean_distance(node2)
 
-# Vg
-vg = 0
-for i in range(dataLen):
-        tmp = 0
-        for j in range(dataLen):
-                matMerged[i][j] = adjK[i][j]
-                if matMerged[i][j] == None or matMerged[i][j] == 0:
-                        matMerged[i][j] = span[i][j]
+mst = minimum_spanning_tree(fullyConnectedGraph).toarray()
 
-                vg += matMerged[i][j]
-                tmp += matMerged[i][j]
-        
-        dMat[i][i] = tmp
+for i in range(len(nodes)):
+    for j in range(len(nodes)):
+        if mst[i][j] != 0:
+            w = 1./mst[i][j]
+            nodes[i].connect_to(j, w)
+            nodes[j].connect_to(i, w)
 
-# Convert to inversely proportional to the Euclidean distance
-matMerged = matMerged + 1
-matMerged = 1. / matMerged
+# Create Adjacency graph
+A = np.zeros((len(nodes), len(nodes)))
 
-# L
-lMat = dMat - matMerged
+for n in nodes:
+    for c in n.connections:
+        A[n.id][c] = n.connections[c]
+
+# Create D matrix
+D = np.zeros((len(nodes), len(nodes)))
+
+for i in range(len(nodes)):
+    D[i][i]=nodes[i].total_weight()
+
+# Create L matrix
+L = D - A
 
 # L+
-lPlusMat = np.linalg.pinv(lMat)
+lPlus = np.linalg.pinv(L)
 
-nMat = np.zeros((dataLen, dataLen))
-for i in range(dataLen):
-        for j in range(dataLen):
-                eVector = np.zeros((dataLen, 1))
-                eVector[i] = 1
-                eVector[j] = -1
+# VG
+vg = np.sum(A)
 
-                nMat[i][j] = vg * np.dot(np.dot(eVector.T, lPlusMat), eVector)
+# N
+N = np.zeros((len(nodes), len(nodes)))
 
-
-# c random prototype
-prototypes = np.random.randint(0, dataLen, size=c)
-labels = np.zeros(dataLen)
+for i in range(len(nodes)):
+    for j in range(len(nodes)):
+        e = np.zeros((len(nodes), 1))
+        e[i] = 1
+        e[j] = -1
+        N[i][j] = vg * np.matrix.dot(np.matrix.dot(np.matrix.transpose(e), lPlus), e)
 
 # Initialize clusters
 clusters = []
-for i in range(c):
-        clusters.append(Cluster(i ,np.random.randint(0, dataLen)))
-        
+prototypes = set()
+for i in range(numOfClusters):
+    rand = np.random.randint(0, len(nodes) - 1)
+    while rand in prototypes:
+        rand = np.random.randint(0, len(nodes) - 1)
+    prototypes.add(rand)
+    clusters.append(Cluster(i, rand))
 
-for kk in range(30):
+# Do labeling
+labels = np.zeros(len(nodes))
+iteration = 0
+while True:
+        iteration+=1
+        if iteration > maxIterations: break
+        print('Iteration ', iteration + 1 , '/' , maxIterations)
+        changed = False
 
         # Allocation of the observations
-        for i in range(dataLen):
-                min = 100000000000
-                nearestCluster = None
-                for cluster in clusters:
-                        cluster.members.discard(i)
-                        if nMat[i][cluster.prototype] ** 2 < min:
-                                min = nMat[i][cluster.prototype] ** 2 
-                                nearestCluster = cluster
-                nearestCluster.members.add(i)
-                labels[i] = nearestCluster.id
-
+        for i in range(len(nodes)):
+            min = math.inf
+            nearestCluster = None
+            for cluster in clusters:
+                cluster.members.discard(i)
+            for cluster in clusters:
+                if N[i][cluster.prototype] ** 2 < min:
+                        min = N[i][cluster.prototype] ** 2 
+                        nearestCluster = cluster
+            nearestCluster.members.add(i)
+            labels[i] = nearestCluster.id
 
         # Computation of the prototypes
         for cluster in clusters:
-                minSum = 99999999999999
-                minM = 0
-                for m in cluster.members:
-                        sum = 0
-                        for n in cluster.members:
-                                if n == m : continue
-                                sum += nMat[m][n] ** 2
-                        if sum < minSum:
-                                minSum = sum
-                                minM = m
-                
+            minSum = 99999999999999
+            minM = 0
+            for m in cluster.members:
+                    sum = 0
+                    for n in cluster.members:
+                            if n == m : continue
+                            sum += N[m][n] ** 2
+                    if sum < minSum:
+                            minSum = sum
+                            minM = m
+            if minM != cluster.prototype:
                 cluster.prototype = minM
+                changed = True
 
-print(len(clusters[0].members))
-print(len(clusters[1].members))
-print(len(clusters[2].members))
+        if changed:
+            print('change!')
+
+print('Clusters:')
+for c in clusters:
+    print(c)
+
+
+print(normalized_mutual_info_score(labels, data[:, 2], average_method='arithmetic'))
+
 plt.scatter(data[:, 0], data[:, 1], c=labels, s=50, cmap='viridis')
 plt.show()
-
-
-# from sklearn.cluster import KMeans
-# kmeans = KMeans(n_clusters=4)
-# kmeans.fit_predict(data)
-# # plt.scatter(data[:, 0], data[:, 1], c=kmeans.labels_, s=50, cmap='viridis')
-
-
-# from sklearn.cluster import AgglomerativeClustering
-# hierarchical = AgglomerativeClustering(n_clusters=4, affinity='euclidean', linkage='ward')  
-# hierarchical.fit_predict(data) 
-# # plt.scatter(data[:, 0], data[:, 1], c=hierarchical.labels_, s=50, cmap='viridis')
-
-# from sklearn.metrics.cluster import normalized_mutual_info_score
-# print(normalized_mutual_info_score(kmeans.labels_, data[:, 2]))
