@@ -9,20 +9,19 @@ from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import minimum_spanning_tree
 
 #TODO:
-# compute NMI
-# circle data
+# run another dataset
 
 # K nearest neighbors
 k = 3
 
 # C clusters
-c = 4
+c = 3
 
 def euclidean_distance(x1,x2):
     return math.sqrt(sum([(a - b) ** 2 for a, b in zip(x1, x2)]))
 
 
-data = pd.read_csv("data.csv")
+data = pd.read_csv("data2.csv")
 data = data.values
 random.shuffle(data)
 # data = data[0:100]
@@ -60,8 +59,8 @@ for i in range(dataLen):
         tmp = 0
         for j in range(dataLen):
                 matMerged[i][j] = adjK[i][j]
-                if matMerged[i][j] == None:
-                        adjK[i][j] = span[i][j]
+                if matMerged[i][j] == None or matMerged[i][j] == 0:
+                        matMerged[i][j] = span[i][j]
 
                 vg += matMerged[i][j]
                 tmp += matMerged[i][j]
@@ -106,8 +105,8 @@ for kk in range(30):
                 nearestCluster = None
                 for cluster in clusters:
                         cluster.members.discard(i)
-                        if nMat[i][cluster.prototype]**2 < min:
-                                min = nMat[i][cluster.prototype]**2 
+                        if nMat[i][cluster.prototype] ** 2 < min:
+                                min = nMat[i][cluster.prototype] ** 2 
                                 nearestCluster = cluster
                 nearestCluster.members.add(i)
                 labels[i] = nearestCluster.id
@@ -131,19 +130,20 @@ for kk in range(30):
 print(len(clusters[0].members))
 print(len(clusters[1].members))
 print(len(clusters[2].members))
-print(len(clusters[3].members))
 plt.scatter(data[:, 0], data[:, 1], c=labels, s=50, cmap='viridis')
+plt.show()
 
 
-from sklearn.cluster import KMeans
-kmeans = KMeans(n_clusters=4)
-kmeans.fit(data)
-y_kmeans = kmeans.predict(data)
-# plt.scatter(data[:, 0], data[:, 1], c=y_kmeans, s=50, cmap='viridis')
+# from sklearn.cluster import KMeans
+# kmeans = KMeans(n_clusters=4)
+# kmeans.fit_predict(data)
+# # plt.scatter(data[:, 0], data[:, 1], c=kmeans.labels_, s=50, cmap='viridis')
 
 
-from sklearn.cluster import AgglomerativeClustering
-cluster = AgglomerativeClustering(n_clusters=4, affinity='euclidean', linkage='ward')  
-cluster.fit_predict(data) 
-plt.scatter(data[:, 0], data[:, 1], c=cluster.labels_, s=50, cmap='viridis')
+# from sklearn.cluster import AgglomerativeClustering
+# hierarchical = AgglomerativeClustering(n_clusters=4, affinity='euclidean', linkage='ward')  
+# hierarchical.fit_predict(data) 
+# # plt.scatter(data[:, 0], data[:, 1], c=hierarchical.labels_, s=50, cmap='viridis')
 
+# from sklearn.metrics.cluster import normalized_mutual_info_score
+# print(normalized_mutual_info_score(kmeans.labels_, data[:, 2]))
