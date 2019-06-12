@@ -2,11 +2,8 @@ import math
 
 class Node:
 
-    def __init__(self, x, y, id):
-
-        self.x = x
-        self.y = y
-
+    def __init__(self, data, id):
+        self.data = data
         self.id = id
         self.distances = []
         self.connections = {}
@@ -18,7 +15,10 @@ class Node:
         return sum
 
     def euclidean_distance(self, node):
-        return math.sqrt((self.x - node.x) ** 2 + (self.y - node.y) ** 2)
+        sum = 0
+        for i in range(len(self.data)):
+            sum += (self.data[i] - node.data[i]) ** 2
+        return math.sqrt(sum)
 
     def connect_to(self, nodeId, weight):
         if nodeId not in self.connections:

@@ -13,17 +13,19 @@ from sklearn.metrics.cluster import normalized_mutual_info_score
 
 # Params
 numOfNeighbors = 3
-numOfClusters = 2
+numOfClusters = 3
 maxIterations = 100
 
 # Read data
-data = pd.read_csv("jain.csv", header=None, delimiter='\t').values
+# data = pd.read_csv("jain.csv", header=None, delimiter='\t').values
+data = pd.read_csv("iris.csv", header=None).values
+
 
 # Create Nodes
 nodes = []
 
 for i in range(len(data)):
-    nodes.append(Node(data[i, 0], data[i, 1], i))
+    nodes.append(Node(data[i][:-1], i))
 
 # Add k nearest nodes
 for node in nodes:
@@ -33,9 +35,10 @@ for node in nodes:
     node.distances.sort(key = lambda d : d[1])
 
     for d in node.distances[0:numOfNeighbors]:
-        id = d[0]
-        distance = d[1]
-        node.connect_to(d[0], 1./distance)
+        if( not d[1]==0 ):
+                id = d[0]
+                distance = d[1]
+                node.connect_to(d[0], 1./distance)
 
 # Create a graph
 fullyConnectedGraph = np.zeros((len(nodes), len(nodes)))
@@ -119,7 +122,7 @@ while True:
 
         # Computation of the prototypes
         for cluster in clusters:
-            minSum = 99999999999999
+            minSum = math.inf
             minM = 0
             for m in cluster.members:
                     sum = 0
@@ -133,15 +136,18 @@ while True:
                 cluster.prototype = minM
                 changed = True
 
-        if changed:
-            print('change!')
+        # if changed:
+        #     print('change!')
 
-print('Clusters:')
-for c in clusters:
-    print(c)
+# print('Clusters:')
+# for c in clusters:
+#     print(c)
 
 
-print(normalized_mutual_info_score(labels, data[:, 2], average_method='arithmetic'))
 
-plt.scatter(data[:, 0], data[:, 1], c=labels, s=50, cmap='viridis')
-plt.show()
+nmi = normalized_mutual_info_score(labels, data[:, 2], average_method='arithmetic')
+print(nmi)
+# plt.scatter(data[:, 0], data[:, 1], c=labels, s=50, cmap='viridis')
+
+# plt.title('Spiral')
+# plt.show()
